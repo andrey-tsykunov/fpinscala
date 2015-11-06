@@ -1,5 +1,7 @@
 package fpinscala.datastructures
 
+import scala.annotation.tailrec
+
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
 /* Another data constructor, representing nonempty lists. Note that `tail` is another `List[A]`,
@@ -19,9 +21,20 @@ object List { // `List` companion object. Contains functions for creating and wo
     case Cons(x,xs) => x * product(xs)
   }
 
-  def apply[A](as: A*): List[A] = // Variadic function syntax
+  def applyWthStackOverflow[A](as: A*): List[A] = // Variadic function syntax
     if (as.isEmpty) Nil
     else Cons(as.head, apply(as.tail: _*))
+
+  def apply[A](as: A*): List[A] = {
+    var result: List[A] = Nil
+
+    for {
+      a <- as.reverse
+    }
+      result = Cons(a, result)
+
+    result
+  }
 
   val x = List(1,2,3,4,5) match {
     case Cons(x, Cons(2, Cons(4, _))) => x
@@ -50,15 +63,34 @@ object List { // `List` companion object. Contains functions for creating and wo
     foldRight(ns, 1.0)(_ * _) // `_ * _` is more concise notation for `(x,y) => x * y`; see sidebar
 
 
-  def tail[A](l: List[A]): List[A] = sys.error("todo")
+  def tail[A](l: List[A]): List[A] = drop(l, 1)
 
-  def setHead[A](l: List[A], h: A): List[A] = sys.error("todo")
+  def setHead[A](l: List[A], h: A): List[A] = l match {
+    case Cons(x, tail) => Cons(h, tail)
+    case Nil => throw new UnsupportedOperationException("setHead of empty list")
+  }
 
-  def drop[A](l: List[A], n: Int): List[A] = sys.error("todo")
+  @tailrec
+  def drop[A](l: List[A], n: Int) : List[A] = n match {
+    case 0 => l
+    case x if x < 0 => throw new IllegalArgumentException()
+    case _ => l match {
+      case Nil => throw new UnsupportedOperationException(s"drop($n) of empty list")
+      case Cons(x, tail) => drop(tail, n - 1)
+    }
+  }
 
-  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = sys.error("todo")
+  @tailrec
+  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = l match {
+    case Nil => l
+    case Cons(x, tail) => if(!f(x)) l else dropWhile(tail, f)
+  }
 
-  def init[A](l: List[A]): List[A] = sys.error("todo")
+  def init[A](l: List[A]): List[A] = l match {
+    case Cons(x, Nil) => Nil
+    case Cons(x, tail) => Cons(x, init(tail))
+    case Nil => throw new UnsupportedOperationException("init of empty list")
+  }
 
   def length[A](l: List[A]): Int = sys.error("todo")
 

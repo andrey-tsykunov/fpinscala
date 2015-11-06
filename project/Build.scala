@@ -2,9 +2,13 @@ import sbt._
 import Keys._
 
 object FPInScalaBuild extends Build {
+
+  val scalaTest = "org.scalatest" %% "scalatest" % "2.2.2" % "test"
+
   val opts = Project.defaultSettings ++ Seq(
     scalaVersion := "2.11.5",
-    resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+    resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
+    libraryDependencies += scalaTest
   )
 
   lazy val root =
@@ -13,6 +17,7 @@ object FPInScalaBuild extends Build {
             settings = opts ++ Seq(
               onLoadMessage ~= (_ + nio2check())
             )) aggregate (chapterCode, exercises, answers)
+
   lazy val chapterCode =
     Project(id = "chapter-code",
             base = file("chaptercode"),
@@ -21,6 +26,7 @@ object FPInScalaBuild extends Build {
     Project(id = "exercises",
             base = file("exercises"),
             settings = opts)
+
   lazy val answers =
     Project(id = "answers",
             base = file("answers"),
