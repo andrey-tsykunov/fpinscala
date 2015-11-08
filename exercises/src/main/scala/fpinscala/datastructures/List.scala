@@ -1,6 +1,7 @@
 package fpinscala.datastructures
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
@@ -62,7 +63,6 @@ object List { // `List` companion object. Contains functions for creating and wo
   def product2(ns: List[Double]) =
     foldRight(ns, 1.0)(_ * _) // `_ * _` is more concise notation for `(x,y) => x * y`; see sidebar
 
-
   def tail[A](l: List[A]): List[A] = drop(l, 1)
 
   def setHead[A](l: List[A], h: A): List[A] = l match {
@@ -92,9 +92,105 @@ object List { // `List` companion object. Contains functions for creating and wo
     case Nil => throw new UnsupportedOperationException("init of empty list")
   }
 
-  def length[A](l: List[A]): Int = sys.error("todo")
+  def length[A](l: List[A]): Int = foldRight(l, 0)((_, i) => i + 1)
 
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = sys.error("todo")
+  @tailrec
+  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B =
+    l match {
+      case Nil => z
+      case Cons(x, xs) => foldLeft(xs, f(z, x))(f)
+    }
 
-  def map[A,B](l: List[A])(f: A => B): List[B] = sys.error("todo")
+  def length3[A](l: List[A]): Int = foldLeft(l, 0)((i, _) => i + 1)
+
+  def sum3(ns: List[Int]) = foldLeft(ns, 0)((x,y) => x + y)
+
+  def product3(ns: List[Double]) = foldLeft(ns, 1.0)(_ * _)
+
+  def reverse[A](l: List[A]): List[A] = foldLeft(l, Nil:List[A])((l, i) => Cons(i, l))
+
+  def foldRightViaFoldLeft[A,B](l: List[A], z: B)(f: (A,B) => B): B =
+    foldLeft(reverse(l), z)((acc, i) => f(i, acc))
+
+  def foldRightViaFoldLeftWithoutReverse[A,B](l: List[A], z: B)(f: (A,B) => B): B =
+    foldLeft(l, (b: B) => b)((acc, i) => (b: B) => acc(f(i, b)))(z)
+
+  def foldLeftViaFoldRightWithoutReverse[A,B](l: List[A], z: B)(f: (B, A) => B): B =
+    foldRight(l, (b: B) => b)((i, acc) => (b: B) => acc(f(b, i)))(z)
+
+  def appendViaFoldRight[A](l: List[A], r: List[A]): List[A] =
+    foldRight(l, r)(Cons(_, _))
+
+  def concat[A](ll: List[List[A]]) : List[A] =
+    foldRight(ll, Nil:List[A])(append)
+
+  def addOne(l: List[Int]):List[Int] =
+    foldRight(l, Nil:List[Int])((i, acc) => Cons(i + 1, acc))
+
+  def doubleToString(l: List[Double]):List[String] =
+    foldRight(l, Nil:List[String])((i, acc) => Cons(i.toString, acc))
+
+  def map[A,B](l: List[A])(f: A => B): List[B] =
+    foldRight(l, Nil:List[B])((a, acc) => Cons(f(a), acc))
+
+  def mapWithStackSafe[A,B](l: List[A])(f: A => B): List[B] = {
+    val buf = new collection.mutable.ListBuffer[B]
+
+    foldLeft(l, buf)((acc,a) => acc += f(a))
+
+    List(buf.toList: _*)
+  }
+
+  def filter[A](l: List[A])(f: A => Boolean): List[A] =
+    foldRight(l, Nil:List[A])((a, acc) => if(f(a)) Cons(a, acc) else acc)
+
+  def flatMap[A,B](l: List[A])(f: A => List[B]): List[B] = {
+    concat(map(l)(f))
+  }
+
+  def filterViaFlatMap[A](l: List[A])(f: A => Boolean): List[A] =
+    flatMap(l)(a => if(f(a)) List(a) else Nil)
+
+  def zipIntegers(l: List[Int], r: List[Int]): List[Int] =
+    (l, r) match {
+      case (_, Nil) => Nil
+      case (Nil, _) => Nil
+      case (Cons(x, xs), Cons(y, ys)) => Cons(x + y, zipIntegers(xs, ys))
+    }
+
+  def zip[A,B,C](l: List[A], r: List[B])(f: (A,B) => C): List[C] =
+    (l, r) match {
+      case (_, Nil) => Nil
+      case (Nil, _) => Nil
+      case (Cons(x, xs), Cons(y, ys)) => Cons(f(x,y), zip(xs, ys)(f))
+    }
+
+  def zipWithStackSafe[A,B,C](l: List[A], r: List[B])(f: (A,B) => C): List[C] = {
+    val buf = new collection.mutable.ListBuffer[C]
+
+    def go(l: List[A], r: List[B]): Unit = {
+      (l, r) match {
+        case (_, Nil) => Nil
+        case (Nil, _) => Nil
+        case (Cons(x, xs), Cons(y, ys)) => buf += f(x,y); go(xs, ys)
+      }
+    }
+
+    go(l, r)
+    List(buf.toList: _*)
+  }
+
+  @tailrec
+  def startsFrom[A](l: List[A], sub: List[A]): Boolean = (l, sub) match {
+    case (_, Nil) => true
+    case (Nil, _) => false
+    case (Cons(x, xs), Cons(y, ys)) => if(x == y) startsFrom(xs, ys)  else false
+  }
+
+  @tailrec
+  def hasSubsequence[A](l: List[A], sub: List[A]): Boolean = l match {
+    case _ if startsFrom(l, sub) => true
+    case Cons(x, xs) => hasSubsequence(xs, sub)
+    case _ => false
+  }
 }
