@@ -45,9 +45,16 @@ class OptionTest extends FunSuite with Matchers {
     Option.map2(Some("a"), None)(_ + _) should be (None)
     Option.map2(None: Option[String], Some("a"))(_ + _) should be (None)
   }
+
   test("sequence") {
     Option.sequence(List(Some("a"), Some("b"))) should be (Some(List("a", "b")))
     Option.sequence(List(Some("a"), None)) should be (None)
   }
 
+  test("traverse") {
+    Option.sequenceViaTranverse(List(Some("a"), Some("b"))) should be (Some(List("a", "b")))
+    Option.sequenceViaTranverse(List(Some("a"), None)) should be (None)
+
+    Option.traverseViaFoldRight(List(Some("a"), Some("b")))(x => x) should be (Some(List("a", "b")))
+  }
 }

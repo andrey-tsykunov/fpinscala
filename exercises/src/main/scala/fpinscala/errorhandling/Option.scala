@@ -83,5 +83,14 @@ object Option {
     case x :: xs => map2(x, sequence(xs))((x, xs) => x :: xs)
   }
 
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = sys.error("todo")
+  def sequenceViaTranverse[A](a: List[Option[A]]): Option[List[A]] =
+    traverse(a)(x => x)
+
+  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = a match {
+    case Nil => Some(Nil)
+    case x :: xs => map2(f(x), traverse(xs)(f))((x, xs) => x :: xs)
+  }
+
+  def traverseViaFoldRight[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] =
+    a.foldRight[Option[List[B]]](Some(Nil))((a, b) => map2(f(a), b)(_ :: _))
 }
