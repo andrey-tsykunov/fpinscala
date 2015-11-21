@@ -37,4 +37,14 @@ class EitherTest extends FunSuite with Matchers {
     Either.sequence(List(Left(1), Right("a"))) should be (Left(1))
     Either.sequence(List(Left(1), Left(2))) should be (Left(1))
   }
+
+  test("sequence2") {
+    Right("a").map(x => x.toUpperCase) should be (Right("A"))
+
+    Either.sequence2(List(Right("a"), Right("b"))) should be (Right(List("a", "b")))
+    Either.sequence2(List(Right("a"), Left(1))) should be (Left(List(1)))
+    Either.sequence2(List(Left(1), Right("a"))) should be (Left(List(1)))
+    Either.sequence2(List(Left(1), Left(2))) should be (Left(List(1, 2)))
+  }
+
 }
