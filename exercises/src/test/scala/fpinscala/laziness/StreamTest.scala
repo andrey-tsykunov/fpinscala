@@ -84,4 +84,33 @@ class StreamTest extends FunSuite with Matchers {
     Stream.from(100).take(3).toList() should be (List(100, 101, 102))
   }
 
+  test("testMap") {
+
+    Stream(1, 2, 3).map(_ + 1).toList() should be (List(2, 3, 4))
+
+    Stream.from(1).map(_ + 1).take(3).toList() should be (List(2, 3, 4))
+  }
+
+  test("testFilter") {
+
+    Stream(1, 2, 3).filter(_ < 3).toList() should be (List(1, 2))
+
+    // does not work if _ < 3
+    Stream.from(1).filter(_ < 4)
+      .take(2)
+      .toList() should be (List(1, 2))
+  }
+
+  test("testAppend") {
+
+    Stream(1, 2, 3).append(Stream(0)).toList() should be (List(1, 2, 3, 0))
+  }
+
+  test("testFlatMap") {
+
+    Stream(1, 2, 3).flatMap(Stream(0, _)).toList() should be (List(0, 1, 0, 2, 0, 3))
+
+    Stream.from(1).flatMap(Stream(0, _)).take(6).toList() should be (List(0, 1, 0, 2, 0, 3))
+  }
+
 }
