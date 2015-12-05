@@ -9,23 +9,55 @@ trait Stream[+A] {
       case _ => z
     }
 
+  def foldLeft[B](z: => B)(f: (=> B, A) => B): B =
+    this match {
+      case Cons(a,t) => t().foldLeft(f(z, a()))(f)
+      case _ => z
+    }
+
   def exists(p: A => Boolean): Boolean = 
-    foldRight(false)((a, b) => p(a) || b) // Here `b` is the unevaluated recursive step that folds the tail of the stream. If `p(a)` returns `true`, `b` will never be evaluated and the computation terminates early.
+    foldRight(false)((a, acc) => p(a) || acc) // Here `b` is the unevaluated recursive step that folds the tail of the stream. If `p(a)` returns `true`, `b` will never be evaluated and the computation terminates early.
 
   @annotation.tailrec
   final def find(f: A => Boolean): Option[A] = this match {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = sys.error("todo")
 
-  def drop(n: Int): Stream[A] = sys.error("todo")
+  def toList(): List[A] = foldRight(Nil:List[A])((a, ls) => a :: ls)
 
-  def takeWhile(p: A => Boolean): Stream[A] = sys.error("todo")
+/*  def take(n: Int): Stream[A] = foldRight((empty:Stream[A], 0)) {
+    case (a, (st, i)) => if(i > n) (st, i) else (cons(a, st), i + 1)
+  }._1*/
 
-  def forAll(p: A => Boolean): Boolean = sys.error("todo")
+  def take(n: Int): Stream[A] = this match {
+    case Cons(a, t) if n > 0 => cons[A](a(), t().take(n - 1))
+    case _ => empty
+  }
 
-  def headOption: Option[A] = sys.error("todo")
+  @annotation.tailrec
+  final def drop(n: Int): Stream[A] = this match {
+    case Cons(a, t) => if (n > 0) t().drop(n - 1) else this
+    case _ => empty
+  }
+
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(a, t) if p(a()) => cons[A](a(), t().takeWhile(p))
+    case _ => empty
+  }
+
+  def takeWhileViaFoldRight(p: A => Boolean): Stream[A] = foldRight(empty:Stream[A]) {
+    (a, st) => {
+      if (p(a)) cons(a, st) else empty
+    }
+  }
+
+  def forAll(p: A => Boolean): Boolean = foldRight(true)((a, acc) => p(a) && acc)
+
+  def headOption: Option[A] = this match {
+    case Cons(h, t) => Some(h())
+    case Empty => None
+  }
 
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
@@ -49,7 +81,7 @@ object Stream {
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = sys.error("todo")
+  def from(n: Int): Stream[Int] = Stream.cons(n, from(n + 1))
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = sys.error("todo")
 }
