@@ -18,7 +18,7 @@ trait Stream[+A] {
       case _ => z
     }
 
-  def exists(p: A => Boolean): Boolean = 
+  def exists(p: A => Boolean): Boolean =
     foldRight(false)((a, acc) => p(a) || acc) // Here `b` is the unevaluated recursive step that folds the tail of the stream. If `p(a)` returns `true`, `b` will never be evaluated and the computation terminates early.
 
   @annotation.tailrec
@@ -65,14 +65,14 @@ trait Stream[+A] {
     }
   }
 
-  def forAll(p: A => Boolean): Boolean = foldRight(true)((a, acc) => p(a) && acc)
+  def forAll(p: A => Boolean): Boolean = foldRight(true)((a, t) => p(a) && t)
 
   def headOption: Option[A] = this match {
     case Cons(h, t) => Some(h())
     case Empty => None
   }
 
-  def map[B](f: A => B): Stream[B] =  foldRight(empty[B])((a, acc) => cons(f(a), acc))
+  def map[B](f: A => B): Stream[B] =  foldRight(empty[B])((a, t) => cons(f(a), t))
 
   def mapViaUnfold[B](f: A => B): Stream[B] =  unfold(this) {
     case Cons(a, t) => Some((f(a()), t()))
@@ -80,27 +80,16 @@ trait Stream[+A] {
   }
 
   def filter(f: A => Boolean): Stream[A] =  foldRight(empty[A])(
-    (a, acc) => if(f(a)) cons(a, acc) else acc
+    (a, t) => if(f(a)) cons(a, t) else t
   )
 
   def append[B >: A](b: => Stream[B]): Stream[B] =  foldRight(b)(
-    (b, acc) => cons(b, acc)
+    (b, t) => cons(b, t)
   )
 
   def flatMap[B](f: A => Stream[B]): Stream[B] =  foldRight(empty[B])(
-    (a, acc) => f(a) append acc
+    (a, t) => f(a) append t
   )
-
-  def zip[B](s: Stream[B]): Stream[(A, B)] = unfold((this, s)) {
-    case (_, Empty) => None
-    case (Empty, _) => None
-    case (Cons(x, xs), Cons(y, ys)) => {
-      val zipped = (x(), y())
-      val next = (xs(), ys())
-
-      Some((zipped, next))
-    }
-  }
 
   def zipAll[B](s: Stream[B]): Stream[(Option[A], Option[B])] = unfold((this, s)) {
     case (Cons(x, xs), Empty) => {
@@ -124,10 +113,43 @@ trait Stream[+A] {
     }
   }
 
-  // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
-  // writing your own function signatures.
+  def zip[B](s: Stream[B]): Stream[(A, B)] = unfold((this, s)) {
+    case (_, Empty) => None
+    case (Empty, _) => None
+    case (Cons(x, xs), Cons(y, ys)) => {
+      val zipped = (x(), y())
+      val next = (xs(), ys())
 
-  def startsWith[B](s: Stream[B]): Boolean = sys.error("todo")
+      Some((zipped, next))
+    }
+  }
+
+  /*
+  * similar to List
+  * */
+  def startsFrom[A](s: Stream[A]): Boolean = (this, s) match {
+    case (_, Empty) => true
+    case (Empty, _) => false
+    case (Cons(x, xs), Cons(y, ys)) => if(x() == y()) xs().startsFrom(ys()) else false
+  }
+
+  def startsWith[A](s: Stream[A]): Boolean =
+    zipAll(s).takeWhile(!_._2.isEmpty) forAll {
+      case (a, b) => a == b
+    }
+
+  def tails: Stream[Stream[A]] = unfold(this) {
+    case s @ Cons(_, xs) => Some(s, xs())
+    case Empty => None
+  } append Stream(Empty)
+
+  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = foldRight((z, Stream(z))) {
+    (a, acc) => {
+      lazy val accX = acc;
+      val b = f(a, accX._1)
+      (b, cons(b, accX._2))
+    }
+  }._2
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -142,7 +164,7 @@ object Stream {
   def empty[A]: Stream[A] = Empty
 
   def apply[A](as: A*): Stream[A] =
-    if (as.isEmpty) empty 
+    if (as.isEmpty) empty
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = cons(1, ones)

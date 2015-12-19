@@ -56,8 +56,8 @@ class StreamTest extends FunSuite with Matchers {
   test("foldRight") {
     Stream(1, 2, 3).foldRight(0)(_ + _) should be (6)
 
-    Stream(1, 2, 3, 4, 1, 1).foldRight(0)((b, acc) => if (b < 4) b + acc else 0) should be (6)
-    Stream.from(1).foldRight(0)((b, acc) => if (b < 4) b + acc else 0) should be (6)
+    Stream(1, 2, 3, 4, 1, 1).foldRight(100 /* not used */)((b, t) => if (b < 4) b + t else 0) should be (6)
+    Stream.from(1).foldRight(100 /* not used */)((b, t) => if (b < 4) b + t else 0) should be (6)
   }
 
   test("testForAll") {
@@ -159,6 +159,49 @@ class StreamTest extends FunSuite with Matchers {
 
     Empty.zipAll(Stream(4,5,6)).toList() should be (List((None, Some(4)), (None,Some(5)), (None,Some(6))))
     Empty.zipAll(Empty).toList() should be (Nil)
+  }
+
+  test("startsFrom") {
+    Stream(1, 2, 3).startsFrom(Stream(1, 2)) should be (true)
+    Stream(1, 2, 3).startsFrom(Stream(1, 2, 3)) should be (true)
+    Stream(1, 2, 3).startsFrom(Stream(1)) should be (true)
+    Stream(1, 2, 3).startsFrom(Stream()) should be (true)
+
+    Stream(1, 2, 3).startsFrom(Stream(2)) should be (false)
+    Stream(1, 2, 3).startsFrom(Stream(1, 1)) should be (false)
+    Stream(1, 2, 3).startsFrom(Stream(1, 2, 1)) should be (false)
+    Stream(1, 2, 3).startsFrom(Stream(1, 2, 3, 4)) should be (false)
+
+    Stream.from(1).startsFrom(Stream(1, 2)) should be (true)
+    Stream.from(1).startsFrom(Stream(1, 2, 4)) should be (false)
+  }
+
+  test("startsWith") {
+    Stream(1, 2, 3).startsWith(Stream(1, 2)) should be (true)
+    Stream(1, 2, 3).startsWith(Stream(1, 2, 3)) should be (true)
+    Stream(1, 2, 3).startsWith(Stream(1)) should be (true)
+    Stream(1, 2, 3).startsWith(Stream()) should be (true)
+
+    Stream(1, 2, 3).startsWith(Stream(2)) should be (false)
+    Stream(1, 2, 3).startsWith(Stream(1, 1)) should be (false)
+    Stream(1, 2, 3).startsWith(Stream(1, 2, 1)) should be (false)
+    Stream(1, 2, 3).startsWith(Stream(1, 2, 3, 4)) should be (false)
+
+    Stream.from(1).startsWith(Stream(1, 2)) should be (true)
+    Stream.from(1).startsWith(Stream(1, 2, 4)) should be (false)
+  }
+
+  test("tails") {
+    Stream(1, 2, 3).tails.toList().map(x => x.toList()) should be (List(
+      List(1,2,3),
+      List(2,3),
+      List(3),
+      Nil
+    ))
+  }
+
+  test("scanRight") {
+    Stream(1,2,3).scanRight(0)(_ + _).toList should be (List(6, 5, 3, 0))
   }
 
 }
