@@ -1,6 +1,9 @@
 package fpinscala.laziness
 
 import Stream._
+
+import scala.annotation.tailrec
+
 trait Stream[+A] {
 
   def foldRight[B](z: => B)(f: (A, => B) => B): B = // The arrow `=>` in front of the argument type `B` means that the function `f` takes its second argument by name and may choose not to evaluate it.
@@ -35,6 +38,11 @@ trait Stream[+A] {
     case _ => empty
   }
 
+  def takeViaUnfold(n: Int): Stream[A] = unfold((n, this)) {
+    case (i, Cons(a, t)) if i > 0 => Some((a(), (i - 1, t())))
+    case _ => None
+  }
+
   @annotation.tailrec
   final def drop(n: Int): Stream[A] = this match {
     case Cons(a, t) => if (n > 0) t().drop(n - 1) else this
@@ -44,6 +52,11 @@ trait Stream[+A] {
   def takeWhile(p: A => Boolean): Stream[A] = this match {
     case Cons(a, t) if p(a()) => cons[A](a(), t().takeWhile(p))
     case _ => empty
+  }
+
+  def takeWhileViaUnfold(p: A => Boolean): Stream[A] = unfold(this) {
+    case Cons(a, t) if p(a()) => Some((a(), t()))
+    case _ => None
   }
 
   def takeWhileViaFoldRight(p: A => Boolean): Stream[A] = foldRight(empty:Stream[A]) {
@@ -61,6 +74,11 @@ trait Stream[+A] {
 
   def map[B](f: A => B): Stream[B] =  foldRight(empty[B])((a, acc) => cons(f(a), acc))
 
+  def mapViaUnfold[B](f: A => B): Stream[B] =  unfold(this) {
+    case Cons(a, t) => Some((f(a()), t()))
+    case _ => None
+  }
+
   def filter(f: A => Boolean): Stream[A] =  foldRight(empty[A])(
     (a, acc) => if(f(a)) cons(a, acc) else acc
   )
@@ -72,6 +90,39 @@ trait Stream[+A] {
   def flatMap[B](f: A => Stream[B]): Stream[B] =  foldRight(empty[B])(
     (a, acc) => f(a) append acc
   )
+
+  def zip[B](s: Stream[B]): Stream[(A, B)] = unfold((this, s)) {
+    case (_, Empty) => None
+    case (Empty, _) => None
+    case (Cons(x, xs), Cons(y, ys)) => {
+      val zipped = (x(), y())
+      val next = (xs(), ys())
+
+      Some((zipped, next))
+    }
+  }
+
+  def zipAll[B](s: Stream[B]): Stream[(Option[A], Option[B])] = unfold((this, s)) {
+    case (Cons(x, xs), Empty) => {
+      val zipped = (Some(x()), None)
+      val next = (xs(), Empty)
+
+      Some((zipped, next))
+    }
+    case (Empty, Cons(y, ys)) => {
+      val zipped = (None, Some(y()))
+      val next = (Empty, ys())
+
+      Some((zipped, next))
+    }
+    case (Empty, Empty) => None
+    case (Cons(x, xs), Cons(y, ys)) => {
+      val zipped = (Some(x()), Some(y()))
+      val next = (xs(), ys())
+
+      Some((zipped, next))
+    }
+  }
 
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
@@ -94,8 +145,30 @@ object Stream {
     if (as.isEmpty) empty 
     else cons(as.head, apply(as.tail: _*))
 
-  val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = Stream.cons(n, from(n + 1))
+  val ones: Stream[Int] = cons(1, ones)
+  def from(n: Int): Stream[Int] = cons(n, from(n + 1))
 
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = sys.error("todo")
+  def fibs(): Stream[Int] = {
+
+    def generate(x: Int, y: Int): Stream[Int] = cons(x, generate(y, x + y))
+
+    generate(0, 1)
+  }
+
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+    def generate(s: S): Stream[A] = f(s) match {
+      case Some((a, s1)) => cons(a, generate(s1))
+      case None => empty[A]
+    }
+
+    generate(z)
+  }
+
+  def fromViaUnfold(n: Int): Stream[Int] = unfold(n)(n => Some(n, n + 1))
+
+  def fibsViaUnfold(): Stream[Int] = unfold((0, 1)) {
+    case (x, y) => Some((x, (y, x + y)))
+  }
+
+  def constant[A](a: A): Stream[A] = unfold(a)(a => Some(a, a))
 }

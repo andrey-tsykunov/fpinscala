@@ -11,6 +11,9 @@ class StreamTest extends FunSuite with Matchers {
     Stream(1, 2, 3, 1, 2).takeWhile(_ < 2).toList should be (List(1))
 
     Stream.from(1).takeWhile(_ < 3).toList() should be (List(1, 2))
+
+    Stream(1, 2, 3).takeWhileViaUnfold(_ < 2).toList should be (List(1))
+    Stream.from(1).takeWhileViaUnfold(_ < 3).toList() should be (List(1, 2))
   }
 
   test("testTakeWhileViaFoldRight") {
@@ -29,6 +32,9 @@ class StreamTest extends FunSuite with Matchers {
     Stream(1, 2, 3).take(4).toList should be (List(1, 2, 3))
 
     Stream.from(1).take(2).toList() should be (List(1, 2))
+
+    Stream(1, 2, 3).takeViaUnfold(1).toList should be (List(1))
+    Stream.from(1).takeViaUnfold(2).toList() should be (List(1, 2))
   }
 
   test("foldLeft") {
@@ -81,14 +87,21 @@ class StreamTest extends FunSuite with Matchers {
   }
 
   test("testFrom") {
-    Stream.from(100).take(3).toList() should be (List(100, 101, 102))
+    Stream.from(1).take(3).toList() should be (List(1, 2, 3))
+    Stream.fromViaUnfold(1).take(3).toList() should be (List(1, 2, 3))
+  }
+
+  test("constant") {
+    Stream.constant(1).take(3).toList() should be (List(1, 1, 1))
   }
 
   test("testMap") {
 
     Stream(1, 2, 3).map(_ + 1).toList() should be (List(2, 3, 4))
-
     Stream.from(1).map(_ + 1).take(3).toList() should be (List(2, 3, 4))
+
+    Stream(1, 2, 3).mapViaUnfold(_ + 1).toList() should be (List(2, 3, 4))
+    Stream.from(1).mapViaUnfold(_ + 1).take(3).toList() should be (List(2, 3, 4))
   }
 
   test("testFilter") {
@@ -111,6 +124,41 @@ class StreamTest extends FunSuite with Matchers {
     Stream(1, 2, 3).flatMap(Stream(0, _)).toList() should be (List(0, 1, 0, 2, 0, 3))
 
     Stream.from(1).flatMap(Stream(0, _)).take(6).toList() should be (List(0, 1, 0, 2, 0, 3))
+  }
+
+  test("testFib") {
+
+    Stream.fibs().take(7).toList() should be (List(0, 1, 1, 2, 3, 5, 8))
+    Stream.fibsViaUnfold().take(7).toList() should be (List(0, 1, 1, 2, 3, 5, 8))
+
+    // not tail rec...
+    //Stream.fib().take(10000).toList().take(7) should be (List(0, 1, 1, 2, 3, 5, 8))
+  }
+
+  test("zip") {
+    Stream(1,2,3).zip(Stream(4,5,6)).toList() should be (List((1, 4), (2,5), (3,6)))
+
+    Stream(1,2,3).zip(Stream(4,5)).toList() should be (List((1, 4), (2,5)))
+
+    Stream(1,2).zip(Stream(4,5,6)).toList() should be (List((1, 4), (2,5)))
+
+    Stream(1,2,3).zip(Empty).toList() should be (Nil)
+
+    Empty.zip(Stream(1,2,3)).toList() should be (Nil)
+    Empty.zip(Empty).toList() should be (Nil)
+  }
+
+  test("zipAll") {
+    Stream(1,2,3).zipAll(Stream(4,5,6)).toList() should be (List((Some(1), Some(4)), (Some(2),Some(5)), (Some(3),Some(6))))
+
+    Stream(1,2,3).zipAll(Stream(4,5)).toList() should be (List((Some(1), Some(4)), (Some(2),Some(5)), (Some(3),None)))
+
+    Stream(1,2).zipAll(Stream(4,5,6)).toList() should be (List((Some(1), Some(4)), (Some(2),Some(5)), (None,Some(6))))
+
+    Stream(1,2,3).zipAll(Empty).toList() should be (List((Some(1), None), (Some(2),None), (Some(3),None)))
+
+    Empty.zipAll(Stream(4,5,6)).toList() should be (List((None, Some(4)), (None,Some(5)), (None,Some(6))))
+    Empty.zipAll(Empty).toList() should be (Nil)
   }
 
 }
