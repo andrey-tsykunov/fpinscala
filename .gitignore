@@ -1,5 +1,6 @@
 *.un~
 *.swp
+*.sc
 tags
 target
 project/boot

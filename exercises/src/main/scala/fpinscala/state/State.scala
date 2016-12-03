@@ -23,11 +23,9 @@ object RNG {
 
   val int: Rand[Int] = _.nextInt
 
-  def unit[A](a: A): Rand[A] =
-    rng => (a, rng)
+  def unit[A](a: A): Rand[A] = (a, _)
 
-  def map[A,B](s: Rand[A])(f: A => B): Rand[B] =
-    rng => {
+  def map[A,B](s: Rand[A])(f: A => B): Rand[B] = rng => {
       val (a, rng2) = s(rng)
       (f(a), rng2)
     }
@@ -44,7 +42,7 @@ object RNG {
     (i.toDouble / Int.MaxValue, rng2)
   }
 
-  def double2 = map(nonNegativeInt)(i => i.toDouble / Int.MaxValue)
+  def double2: Rand[Double] = map(nonNegativeInt)(i => i.toDouble / Int.MaxValue)
 
   def intDouble(rng: RNG): ((Int,Double), RNG) = {
     val (i,rng2) = rng.nextInt
@@ -56,10 +54,9 @@ object RNG {
   def intDouble2(rng: RNG): ((Int,Double), RNG) = map2(int, double)((_, _))(rng)
 
   def doubleInt(rng: RNG): ((Double,Int), RNG) = {
-    val (d, rng2) = double(rng)
-    val (i,rng3) = rng2.nextInt
+    val (v, r) = intDouble(rng)
 
-    ((d, i), rng3)
+    (v.swap, r)
   }
 
   def double3(rng: RNG): ((Double,Double,Double), RNG) = {
@@ -101,7 +98,16 @@ object RNG {
     (f(a, b), rng3)
   }
 
-  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = ???
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = rng => {
+
+    fs.foldRight((List.empty[A], rng)) {
+      case (rand, (ls, rng)) => {
+        val (a, nextRng) = rand(rng)
+
+        (a :: ls, nextRng)
+      }
+    }
+  }
 
   def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
 }
