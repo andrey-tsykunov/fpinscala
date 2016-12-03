@@ -35,6 +35,15 @@ object RNG {
     (if(i == Int.MinValue) Int.MaxValue else i.abs, rng2)
   }
 
+  def nonNegativeInt_retry(rng: RNG): (Int, RNG) = {
+    val (i,rng2) = rng.nextInt
+    if(i == Int.MinValue) nonNegativeInt(rng2) else (i.abs, rng2)
+  }
+
+  def nonNegativeInt_map: Rand[Int] = map(int){ i =>
+    if (i != Int.MinValue) i.abs else Int.MaxValue
+  }
+
   def positiveMax(n: Int): Rand[Int] = map(nonNegativeInt)(i => (i.toDouble * n / Int.MaxValue).toInt)
 
   def double(rng: RNG): (Double, RNG) = {
@@ -76,7 +85,7 @@ object RNG {
     }
   }
 
-  def intsWithSafeStack(count: Int)(rng: RNG): (List[Int], RNG) = {
+  def ints2_tailRec(count: Int)(rng: RNG): (List[Int], RNG) = {
 
     @tailrec
     def generate(count: Int, rng: RNG, prev: List[Int]) : (List[Int], RNG) = count match {
@@ -88,7 +97,13 @@ object RNG {
       }
     }
 
-    generate(count, rng, Nil)
+    val r = generate(count, rng, Nil)
+    (r._1.reverse, r._2)
+  }
+
+  def ints3_sequence(count: Int)(rng: RNG): (List[Int], RNG) = {
+
+    sequence(List.fill(count)(int))(rng)
   }
 
   def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
@@ -100,13 +115,15 @@ object RNG {
 
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = rng => {
 
-    fs.foldRight((List.empty[A], rng)) {
-      case (rand, (ls, rng)) => {
+    val r = fs.foldLeft((List.empty[A], rng)) {
+      case ((ls, rng), rand) => {
         val (a, nextRng) = rand(rng)
 
         (a :: ls, nextRng)
       }
     }
+
+    (r._1.reverse, r._2)
   }
 
   def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
