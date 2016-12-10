@@ -7,17 +7,32 @@ class RNGTest extends FlatSpec with Matchers {
   import RNG._
 
   trait RngFixture {
-    val seed = constRNG(0)
+    val constSeed = constRNG(0)
 
     def constRNG(i: Int): RNG = new RNG {
-      override def nextInt: (Int, RNG) = (i, this)
+      override def nextInt: (Int, RNG) = (i, constRNG(i))
     }
 
     def incrementRNG(i: Int): RNG = new RNG {
       override def nextInt: (Int, RNG) = (i, incrementRNG(i+1))
     }
 
-    def verify[A](rand: Rand[A], expected: A) = rand(seed) shouldBe (expected, seed)
+    def const(i: Int): Rand[Int] = _ => constRNG(i).nextInt
+
+    def verify[A](rand: Rand[A], expected: A)(implicit seed: RNG = constSeed) = {
+
+      val (value, next) = rand(seed)
+
+      value shouldBe expected
+      next should not be (seed)
+    }
+  }
+
+  it should "work for int" in new RngFixture {
+
+    implicit val rng = incrementRNG(1)
+
+    verify(RNG.int, 1)
   }
 
   it should "work for nonNegativeInt" in new RngFixture {
@@ -37,7 +52,7 @@ class RNGTest extends FlatSpec with Matchers {
     double2(constRNG(-100000))._1 should be (100000.toDouble / Int.MaxValue)
   }
 
-  it should "work for int" in new RngFixture {
+  it should "work for intDouble" in new RngFixture {
     intDouble(incrementRNG(100))._1 should be ((100, 101.toDouble / Int.MaxValue))
   }
 
@@ -56,21 +71,26 @@ class RNGTest extends FlatSpec with Matchers {
   }
 
   it should "work for map" in new RngFixture {
-    val add2 = map(unit(3))(_ + 2)
+    val add2 = map(const(3))(_ + 2)
 
     verify(add2, 5)
   }
 
   it should "work for map2" in new RngFixture {
-    val plus = map2(unit(3), unit(2))(_ + _)
+    val plus = map2(const(3), unit(2))(_ + _)
 
     verify(plus, 5)
   }
 
   it should "work for sequence" in new RngFixture {
 
-    val seq = sequence(List(unit(3), unit(1), unit(2)))
+    val seq = sequence(List(const(3), const(1), const(2)))
 
     verify(seq, List(3, 1, 2))
+  }
+
+  it should "work for flatMap" in new RngFixture {
+
+    verify(flatMap(const(3))(x => const(x + 1)), 4)
   }
 }

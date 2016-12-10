@@ -126,7 +126,11 @@ object RNG {
     (r._1.reverse, r._2)
   }
 
-  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
+  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
+    val (a, rng2) = f(rng)
+
+    g(a)(rng2)
+  }
 }
 
 case class State[S,+A](run: S => (A, S)) {
