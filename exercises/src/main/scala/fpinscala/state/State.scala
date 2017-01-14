@@ -60,13 +60,15 @@ object RNG {
     ((i, d), rng3)
   }
 
-  def intDouble2(rng: RNG): ((Int,Double), RNG) = map2(int, double)((_, _))(rng)
+  def intDouble_map2(rng: RNG): ((Int,Double), RNG) = map2(int, double)((_, _))(rng)
 
   def doubleInt(rng: RNG): ((Double,Int), RNG) = {
     val (v, r) = intDouble(rng)
 
     (v.swap, r)
   }
+
+  def doubleInt_map = map(intDouble)(_.swap)
 
   def double3(rng: RNG): ((Double,Double,Double), RNG) = {
     val (d1, rng2) = double(rng)
@@ -85,7 +87,7 @@ object RNG {
     }
   }
 
-  def ints2_tailRec(count: Int)(rng: RNG): (List[Int], RNG) = {
+  def ints_tailRec(count: Int)(rng: RNG): (List[Int], RNG) = {
 
     @tailrec
     def generate(count: Int, rng: RNG, prev: List[Int]) : (List[Int], RNG) = count match {
@@ -101,10 +103,7 @@ object RNG {
     (r._1.reverse, r._2)
   }
 
-  def ints3_sequence(count: Int)(rng: RNG): (List[Int], RNG) = {
-
-    sequence(List.fill(count)(int))(rng)
-  }
+  def ints_sequence(count: Int): Rand[List[Int]] = sequence(List.fill(count)(int))
 
   def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
     val (a, rng2) = ra(rng)
@@ -124,6 +123,15 @@ object RNG {
     }
 
     (r._1.reverse, r._2)
+  }
+
+  def sequence_map[A](fs: List[Rand[A]]): Rand[List[A]] = {
+
+    val r = fs.foldLeft(unit(List[A]())) {
+      (acc, f) => map2(f, acc)(_ :: _)
+    }
+
+    map(r)(_.reverse)
   }
 
   def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
